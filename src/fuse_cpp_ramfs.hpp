@@ -5,7 +5,32 @@
 #ifndef fuse_ram_fs_hpp
 #define fuse_ram_fs_hpp
 
+#include <xalloc/xallocator.h>
+
+class XAllocInit {
+private:
+    void *memory;
+    size_t data_cap;
+    size_t blocksize;
+public:
+    XAllocInit() {
+        data_cap = 1024*1024;
+        blocksize = 4096;
+        size_t required = calc_required_memsize(data_cap, blocksize);
+        char *buf = new char[required];
+        memory = buf;
+        xalloc_init(data_cap, blocksize, memory);
+    }
+
+    ~XAllocInit() {
+        xalloc_destroy();
+        delete static_cast<char *>(memory);
+    }
+};
+
 class FuseRamFs {
+    XALLOCATOR
+
 private:
     static const size_t kReadDirEntriesPerResponse = 255;
     static const size_t kReadDirBufSize = 384;

@@ -5,11 +5,14 @@
 #ifndef inode_hpp
 #define inode_hpp
 
+#include <xalloc/xallocator.h>
+
 class Inode {
+    XALLOCATOR
+
 private:    
     bool m_markedForDeletion;
     unsigned long m_nlookup;
-
 
 protected:
     struct fuse_entry_param m_fuseEntryParam;

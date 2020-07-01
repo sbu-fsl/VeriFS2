@@ -52,7 +52,7 @@ int main(int argc, const char * argv[]) {
     int err = -1;
     
     // The core code for our filesystem.
-    FuseRamFs core;
+    FuseRamFs *core = new FuseRamFs();
     
     if (fuse_parse_cmdline(&args, &mountpoint, NULL, NULL) != -1) {
         if (mountpoint == NULL) {
@@ -61,8 +61,8 @@ int main(int argc, const char * argv[]) {
             struct fuse_session *se;
             
             // The FUSE options come from our core code.
-            se = fuse_lowlevel_new(&args, &(core.FuseOps),
-                                   sizeof(core.FuseOps), NULL);
+            se = fuse_lowlevel_new(&args, &(core->FuseOps),
+                                   sizeof(core->FuseOps), NULL);
             if (se != NULL) {
                 if (fuse_set_signal_handlers(se) != -1) {
                     fuse_session_add_chan(se, ch);
@@ -78,6 +78,8 @@ int main(int argc, const char * argv[]) {
     fuse_opt_free_args(&args);
     
     delete_args(argc, fuse_argv);
+
+    delete core;
     
     return err ? 1 : 0;
 }

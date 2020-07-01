@@ -21,6 +21,7 @@
 #include <fuse/fuse_lowlevel.h>
 #endif
 #include <unistd.h>
+#include <xalloc/xallocator.h>
 
 #include "inode.hpp"
 #include "file.hpp"
@@ -31,6 +32,9 @@
 #include "util.hpp"
 
 using namespace std;
+
+/* Initialize xallocator */
+static XAllocInit _xalloc_init;
 
 /**
  All the Inode objects in the system.
