@@ -30,7 +30,10 @@ void delete_args(int argc, char **argv) {
  * @param argc The number of arguments.
  * @param argv A pointer to the first argument.
  * @return The exit code of the program. Zero on success. */
+/* Initialize the static instance to NULL*/
+FuseRamFs * FuseRamFs::instance = NULL;
 int main(int argc, const char * argv[]) {
+    
     char **fuse_argv = copy_args(argc, argv);
     
     struct fuse_args args = {argc, fuse_argv, 1};

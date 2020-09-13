@@ -20,26 +20,28 @@ using namespace std;
 /**
  All the Inode objects in the system.
  */
-vector<Inode *> FuseRamFs::Inodes = vector<Inode *>();
-std::shared_mutex FuseRamFs::inodesRwSem;
+/* non-static members cant be accessed before object creation |
+ Initialization moved with defination */
+// vector<Inode *> FuseRamFs::getInstance()->Inodes = vector<Inode *>();
+// std::shared_mutex FuseRamFs::inodesRwSem;
 
 /**
  The Inodes which have been deleted.
  */
-queue<fuse_ino_t> FuseRamFs::DeletedInodes = queue<fuse_ino_t>();
-std::mutex FuseRamFs::deletedInodesMutex;
+//queue<fuse_ino_t> FuseRamFs::DeletedInodes = queue<fuse_ino_t>();
+//std::mutex FuseRamFs::deletedInodesMutex;
 
 /**
  The constants defining the capabilities and sizes of the filesystem.
  */
-struct statvfs FuseRamFs::m_stbuf = {};
-std::shared_mutex FuseRamFs::stbufMutex;
+// struct statvfs FuseRamFs::m_stbuf = {};
+// std::shared_mutex FuseRamFs::stbufMutex;
 
-std::mutex FuseRamFs::renameMutex;
+// std::mutex FuseRamFs::renameMutex;
 /**
  All the supported filesystem operations mapped to object-methods.
  */
-struct fuse_lowlevel_ops FuseRamFs::FuseOps = {};
+//struct fuse_lowlevel_ops FuseRamFs::FuseOps = {};
 
 
 FuseRamFs::FuseRamFs(fsblkcnt_t blocks, fsfilcnt_t inodes)
@@ -85,17 +87,17 @@ FuseRamFs::FuseRamFs(fsblkcnt_t blocks, fsfilcnt_t inodes)
     }
     /* No need for locking because no other threads should
      * be accessing these attributes during construction */
-    m_stbuf.f_bsize   = Inode::BufBlockSize;   /* File system block size */
-    m_stbuf.f_frsize  = Inode::BufBlockSize;   /* Fundamental file system block size */
-    m_stbuf.f_blocks  = blocks;                /* Blocks on FS in units of f_frsize */
-    m_stbuf.f_bfree   = blocks;                /* Free blocks */
-    m_stbuf.f_bavail  = blocks;                /* Blocks available to non-root */
-    m_stbuf.f_files   = inodes;                /* Total inodes */
-    m_stbuf.f_ffree   = inodes;                /* Free inodes */
-    m_stbuf.f_favail  = inodes;                /* Free inodes for non-root */
-    m_stbuf.f_fsid    = kFilesystemId;         /* Filesystem ID */
-    m_stbuf.f_flag    = 0;                     /* Bit mask of values */
-    m_stbuf.f_namemax = kMaxFilenameLength;    /* Max file name length */
+    FuseRamFs::getInstance()->m_stbuf.f_bsize   = Inode::BufBlockSize;   /* File system block size */
+    FuseRamFs::getInstance()->m_stbuf.f_frsize  = Inode::BufBlockSize;   /* Fundamental file system block size */
+    FuseRamFs::getInstance()->m_stbuf.f_blocks  = blocks;                /* Blocks on FS in units of f_frsize */
+    FuseRamFs::getInstance()->m_stbuf.f_bfree   = blocks;                /* Free blocks */
+    FuseRamFs::getInstance()->m_stbuf.f_bavail  = blocks;                /* Blocks available to non-root */
+    FuseRamFs::getInstance()->m_stbuf.f_files   = inodes;                /* Total inodes */
+    FuseRamFs::getInstance()->m_stbuf.f_ffree   = inodes;                /* Free inodes */
+    FuseRamFs::getInstance()->m_stbuf.f_favail  = inodes;                /* Free inodes for non-root */
+    FuseRamFs::getInstance()->m_stbuf.f_fsid    = kFilesystemId;         /* Filesystem ID */
+    FuseRamFs::getInstance()->m_stbuf.f_flag    = 0;                     /* Bit mask of values */
+    FuseRamFs::getInstance()->m_stbuf.f_namemax = kMaxFilenameLength;    /* Max file name length */
 }
 
 FuseRamFs::~FuseRamFs()
@@ -115,11 +117,11 @@ void FuseRamFs::FuseInit(void *userdata, struct fuse_conn_info *conn)
 {
     /* No need for locking because no other threads should be
      * accessing these elements during f/s initialization */
-    m_stbuf.f_bfree  = m_stbuf.f_blocks;	/* Free blocks */
-    m_stbuf.f_bavail = m_stbuf.f_blocks;	/* Blocks available to non-root */
-    m_stbuf.f_ffree  = m_stbuf.f_files;	/* Free inodes */
-    m_stbuf.f_favail = m_stbuf.f_files;	/* Free inodes for non-root */
-    m_stbuf.f_flag   = 0;		/* Bit mask of values */
+    FuseRamFs::getInstance()->m_stbuf.f_bfree  = FuseRamFs::getInstance()->m_stbuf.f_blocks;	/* Free blocks */
+    FuseRamFs::getInstance()->m_stbuf.f_bavail = FuseRamFs::getInstance()->m_stbuf.f_blocks;	/* Blocks available to non-root */
+    FuseRamFs::getInstance()->m_stbuf.f_ffree  = FuseRamFs::getInstance()->m_stbuf.f_files;	/* Free inodes */
+    FuseRamFs::getInstance()->m_stbuf.f_favail = FuseRamFs::getInstance()->m_stbuf.f_files;	/* Free inodes for non-root */
+    FuseRamFs::getInstance()->m_stbuf.f_flag   = 0;		/* Bit mask of values */
     
     // We start out with a special inode and a single directory (the root directory).
     Inode *inode_p;
@@ -150,7 +152,7 @@ void FuseRamFs::FuseInit(void *userdata, struct fuse_conn_info *conn)
 void FuseRamFs::FuseDestroy(void *userdata)
 {
     /* No need for locking because it's destruction of the file system */
-    for(auto const& inode: Inodes) {
+    for(auto const& inode:FuseRamFs::getInstance()->Inodes) {
         delete inode;
     }
 }
@@ -371,7 +373,7 @@ void FuseRamFs::FuseReadDir(fuse_req_t req, fuse_ino_t ino, size_t size,
     memset(&stbuf, 0, sizeof(stbuf));
     
     // Pick the lesser of the max response size or our max size.
-    size_t bufSize = FuseRamFs::kReadDirBufSize < size ? FuseRamFs::kReadDirBufSize : size;
+    size_t bufSize = FuseRamFs::getInstance()->kReadDirBufSize < size ? FuseRamFs::getInstance()->kReadDirBufSize : size;
     char *buf = (char *) malloc(bufSize);
     if (buf == NULL) {
         fuse_reply_err(req, ENOMEM);
@@ -382,7 +384,7 @@ void FuseRamFs::FuseReadDir(fuse_req_t req, fuse_ino_t ino, size_t size,
     size_t bytesAdded = 0;
     size_t entriesAdded = 0;
     
-    while (entriesAdded < FuseRamFs::kReadDirEntriesPerResponse &&
+    while (entriesAdded < FuseRamFs::getInstance()->kReadDirEntriesPerResponse &&
            ctx->it != ctx->children.end()) {
         fuse_ino_t child_ino = ctx->it->second;
         Inode *childInode = GetInode(child_ino);
@@ -880,7 +882,7 @@ void FuseRamFs::FuseRename(fuse_req_t req, fuse_ino_t parent, const char *name, 
         return;
     }
 
-    std::unique_lock<std::mutex> G(FuseRamFs::renameMutex, std::defer_lock);
+    std::unique_lock<std::mutex> G(FuseRamFs::getInstance()->renameMutex, std::defer_lock);
     std::unique_lock<std::shared_mutex> L1(parentDir->DirLock(), std::defer_lock);
     std::unique_lock<std::shared_mutex> L2(newParentDir->DirLock(), std::defer_lock);
     
@@ -1208,7 +1210,7 @@ fuse_ino_t FuseRamFs::RegisterInode(Inode *inode_p, mode_t mode, nlink_t nlink, 
     // Either re-use a deleted inode or push one back depending on whether we're reclaiming inodes now or
     // not.
     fuse_ino_t ino;
-    if (DeletedInodes.empty()) {
+    if (FuseRamFs::getInstance()->DeletedInodes.empty()) {
         ino = FuseRamFs::AddInode(inode_p);
     } else {
         ino = PopOneDeletedInode();

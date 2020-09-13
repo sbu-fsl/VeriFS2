@@ -12,25 +12,35 @@ class Directory;
 
 class FuseRamFs {
 private:
-    static const size_t kReadDirEntriesPerResponse = 255;
-    static const size_t kReadDirBufSize = 384;
-    static const size_t kInodeReclamationThreshold = 256;
-    static const fsblkcnt_t kTotalBlocks = 8388608;
-    static const fsfilcnt_t kTotalInodes = 1048576;
-    static const unsigned long kFilesystemId = 0xc13f944870434d8f;
-    static const size_t kMaxFilenameLength = 1024;
-    
-    static std::vector<Inode *> Inodes;
-    static std::shared_mutex inodesRwSem;
-    static std::queue<fuse_ino_t> DeletedInodes;
-    static std::mutex deletedInodesMutex;
-    static struct statvfs m_stbuf;
-    static std::shared_mutex stbufMutex;
+    //FuseRamFs::getInstance()->
+    //make the class singleton
+    static FuseRamFs * instance;
 
-    static std::mutex renameMutex;
+    const size_t kReadDirEntriesPerResponse = 255;
+    const size_t kReadDirBufSize = 384;
+    const size_t kInodeReclamationThreshold = 256;
+    const fsblkcnt_t kTotalBlocks = 8388608;
+    const fsfilcnt_t kTotalInodes = 1048576;
+    const unsigned long kFilesystemId = 0xc13f944870434d8f;
+    const size_t kMaxFilenameLength = 1024;   
+    
+private:
+    std::vector<Inode *> Inodes = std::vector<Inode *>();
+    std::shared_mutex inodesRwSem;
+    std::queue<fuse_ino_t> DeletedInodes = std::queue<fuse_ino_t>();
+    std::mutex deletedInodesMutex;
+    struct statvfs m_stbuf = {};
+    std::shared_mutex stbufMutex;
+    std::mutex renameMutex;
     
 public:
-    static struct fuse_lowlevel_ops FuseOps;
+    struct fuse_lowlevel_ops FuseOps = {};
+    //method to get reference of the single object
+    static FuseRamFs * getInstance(){
+        if(instance==NULL)
+            instance = new FuseRamFs();
+        return instance;
+    }
     
 private:
     static long do_create_node(Directory *parent, const char *name, mode_t mode, dev_t dev, const struct fuse_ctx *ctx, const char *symlink = nullptr);
@@ -39,28 +49,28 @@ private:
 
     /* Atomic inode table operations */
     static void DeleteInode(fuse_ino_t ino) {
-        std::unique_lock<std::shared_mutex> L1(inodesRwSem, std::defer_lock);
-        std::unique_lock<std::mutex> L2(deletedInodesMutex, std::defer_lock);
+        std::unique_lock<std::shared_mutex> L1(FuseRamFs::getInstance()->inodesRwSem, std::defer_lock);
+        std::unique_lock<std::mutex> L2(FuseRamFs::getInstance()->deletedInodesMutex, std::defer_lock);
         std::lock(L1, L2);
-        Inodes[ino] = nullptr;
-        DeletedInodes.push(ino);
+        FuseRamFs::getInstance()->Inodes[ino] = nullptr;
+        FuseRamFs::getInstance()->DeletedInodes.push(ino);
     }
 
     static fuse_ino_t AddInode(Inode *inode) {
-        std::unique_lock<std::shared_mutex> writelk(inodesRwSem);
-        Inodes.push_back(inode);
-        return Inodes.size() - 1;
+        std::unique_lock<std::shared_mutex> writelk(FuseRamFs::getInstance()->inodesRwSem);
+        FuseRamFs::getInstance()->Inodes.push_back(inode);
+        return FuseRamFs::getInstance()->Inodes.size() - 1;
     }
 
     static void UpdateInode(fuse_ino_t ino, Inode *newInode) {
-        std::unique_lock<std::shared_mutex> writelk(inodesRwSem);
-        Inodes[ino] = newInode;
+        std::unique_lock<std::shared_mutex> writelk(FuseRamFs::getInstance()->inodesRwSem);
+        FuseRamFs::getInstance()->Inodes[ino] = newInode;
     }
 
     static fuse_ino_t PopOneDeletedInode() {
-        std::lock_guard<std::mutex> lk(deletedInodesMutex);
-        fuse_ino_t ino = DeletedInodes.front();
-        DeletedInodes.pop();
+        std::lock_guard<std::mutex> lk(FuseRamFs::getInstance()->deletedInodesMutex);
+        fuse_ino_t ino = FuseRamFs::getInstance()->DeletedInodes.front();
+        FuseRamFs::getInstance()->DeletedInodes.pop();
         return ino;
     }
     
@@ -115,24 +125,24 @@ public:
     static void FuseGetLock(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi, struct flock *lock);
     
     static void UpdateUsedBlocks(ssize_t blocksAdded) {
-        std::unique_lock<std::shared_mutex> lk(stbufMutex);
-        m_stbuf.f_bfree -= blocksAdded;
-        m_stbuf.f_bavail -= blocksAdded;
+        std::unique_lock<std::shared_mutex> lk(FuseRamFs::getInstance()->stbufMutex);
+        FuseRamFs::getInstance()->m_stbuf.f_bfree -= blocksAdded;
+        FuseRamFs::getInstance()->m_stbuf.f_bavail -= blocksAdded;
     }
     static void UpdateUsedInodes(ssize_t inodesAdded) {
-        std::unique_lock<std::shared_mutex> lk(stbufMutex);
-        m_stbuf.f_ffree -= inodesAdded;
-        m_stbuf.f_favail -= inodesAdded;
+        std::unique_lock<std::shared_mutex> lk(FuseRamFs::getInstance()->stbufMutex);
+        FuseRamFs::getInstance()->m_stbuf.f_ffree -= inodesAdded;
+        FuseRamFs::getInstance()->m_stbuf.f_favail -= inodesAdded;
     }
     static void FsStat(struct statvfs *out) {
-        std::shared_lock<std::shared_mutex> lk(stbufMutex);
-        *out = m_stbuf;
+        std::shared_lock<std::shared_mutex> lk(FuseRamFs::getInstance()->stbufMutex);
+        *out = FuseRamFs::getInstance()->m_stbuf;
     }
 
     static Inode *GetInode(fuse_ino_t ino) {
-        std::shared_lock<std::shared_mutex> readlk(inodesRwSem);
+        std::shared_lock<std::shared_mutex> readlk(FuseRamFs::getInstance()->inodesRwSem);
         try {
-            return Inodes.at(ino);
+            return FuseRamFs::getInstance()->Inodes.at(ino);
         } catch (std::out_of_range e) {
             return nullptr;
         }
@@ -155,14 +165,14 @@ public:
         if (newBlocks <= oldBlocks) {
             return true;
         } else {
-            std::shared_lock<std::shared_mutex> lk(stbufMutex);
-            return m_stbuf.f_bfree >= (newBlocks - oldBlocks);
+            std::shared_lock<std::shared_mutex> lk(FuseRamFs::getInstance()->stbufMutex);
+            return FuseRamFs::getInstance()->m_stbuf.f_bfree >= (newBlocks - oldBlocks);
         }
     }
 
     static fsfilcnt_t GetFreeInodes() {
-        std::shared_lock<std::shared_mutex> lk(stbufMutex);
-        return m_stbuf.f_ffree;
+        std::shared_lock<std::shared_mutex> lk(FuseRamFs::getInstance()->stbufMutex);
+        return FuseRamFs::getInstance()->m_stbuf.f_ffree;
     }
 };
 
