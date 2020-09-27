@@ -46,6 +46,7 @@ using namespace std;
 
 FuseRamFs::FuseRamFs(fsblkcnt_t blocks, fsfilcnt_t inodes)
 {
+    //cout<<__LINE__<<" Fuse RamFs "<<endl;
     FuseOps.init        = FuseRamFs::FuseInit;
     FuseOps.destroy     = FuseRamFs::FuseDestroy;
     FuseOps.lookup      = FuseRamFs::FuseLookup;
@@ -87,17 +88,20 @@ FuseRamFs::FuseRamFs(fsblkcnt_t blocks, fsfilcnt_t inodes)
     }
     /* No need for locking because no other threads should
      * be accessing these attributes during construction */
-    FuseRamFs::getInstance()->m_stbuf.f_bsize   = Inode::BufBlockSize;   /* File system block size */
-    FuseRamFs::getInstance()->m_stbuf.f_frsize  = Inode::BufBlockSize;   /* Fundamental file system block size */
-    FuseRamFs::getInstance()->m_stbuf.f_blocks  = blocks;                /* Blocks on FS in units of f_frsize */
-    FuseRamFs::getInstance()->m_stbuf.f_bfree   = blocks;                /* Free blocks */
-    FuseRamFs::getInstance()->m_stbuf.f_bavail  = blocks;                /* Blocks available to non-root */
-    FuseRamFs::getInstance()->m_stbuf.f_files   = inodes;                /* Total inodes */
-    FuseRamFs::getInstance()->m_stbuf.f_ffree   = inodes;                /* Free inodes */
-    FuseRamFs::getInstance()->m_stbuf.f_favail  = inodes;                /* Free inodes for non-root */
-    FuseRamFs::getInstance()->m_stbuf.f_fsid    = kFilesystemId;         /* Filesystem ID */
-    FuseRamFs::getInstance()->m_stbuf.f_flag    = 0;                     /* Bit mask of values */
-    FuseRamFs::getInstance()->m_stbuf.f_namemax = kMaxFilenameLength;    /* Max file name length */
+    
+    
+    //getInstance() in constructor was creating an infinite loop
+
+    m_stbuf.f_frsize  = Inode::BufBlockSize;   /* Fundamental file system block size */
+    m_stbuf.f_blocks  = blocks;                /* Blocks on FS in units of f_frsize */
+    m_stbuf.f_bfree   = blocks;                /* Free blocks */
+    m_stbuf.f_bavail  = blocks;                /* Blocks available to non-root */
+    m_stbuf.f_files   = inodes;                /* Total inodes */
+    m_stbuf.f_ffree   = inodes;                /* Free inodes */
+    m_stbuf.f_favail  = inodes;                /* Free inodes for non-root */
+    m_stbuf.f_fsid    = kFilesystemId;         /* Filesystem ID */
+    m_stbuf.f_flag    = 0;                     /* Bit mask of values */
+    m_stbuf.f_namemax = kMaxFilenameLength;  
 }
 
 FuseRamFs::~FuseRamFs()
