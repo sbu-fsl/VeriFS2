@@ -31,6 +31,11 @@ public:
 public:
     ~Directory() {}
 
+    Directory() {}
+    Directory(const Directory &d) : Inode(d) {
+      m_children = d.m_children;
+    }
+
     void Initialize(fuse_ino_t ino, mode_t mode, nlink_t nlink, gid_t gid, uid_t uid);
     fuse_ino_t _ChildInodeNumberWithName(const std::string &name);
     fuse_ino_t ChildInodeNumberWithName(const std::string &name);
@@ -51,6 +56,13 @@ public:
     const std::map<std::string, fuse_ino_t> &Children() { return m_children; }
 
     std::shared_mutex& DirLock() { return childrenRwSem; }
+
+#ifdef VERIFS2_COPY_BENCH
+    /* Only for benchmarking purpose! */
+    std::map<std::string, fuse_ino_t>& _children() {
+      return m_children;
+    }
+#endif
 };
 
 #endif /* directory_hpp */

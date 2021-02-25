@@ -19,6 +19,10 @@ private:
 public:
     SpecialInode(enum SpecialInodeTypes type, dev_t dev = 0);
     ~SpecialInode() {};
+
+    SpecialInode(const SpecialInode &sp) : Inode(sp) {
+      m_type = sp.m_type;
+    }
     
     int WriteAndReply(fuse_req_t req, const char *buf, size_t size, off_t off);
     

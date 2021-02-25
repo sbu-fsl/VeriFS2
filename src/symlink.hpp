@@ -12,6 +12,10 @@ private:
 public:
     SymLink(const std::string &link) :
     m_link(link) {}
+
+    SymLink(const SymLink &sym) : Inode(sym) {
+      m_link = sym.m_link;
+    }
     
     ~SymLink() {};
     

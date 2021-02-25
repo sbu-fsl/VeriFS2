@@ -26,6 +26,13 @@ public:
     m_markedForDeletion(false),
     m_nlookup(0)
     {}
+
+    Inode(const Inode &src) {
+      m_markedForDeletion = src.m_markedForDeletion;
+      m_nlookup.store(src.m_nlookup.load());
+      m_fuseEntryParam = src.m_fuseEntryParam;
+      m_xattr = src.m_xattr;
+    }
     
     virtual ~Inode() = 0;
     
@@ -78,6 +85,13 @@ public:
     fuse_ino_t GetIno() { return m_fuseEntryParam.attr.st_ino; }
     
     bool Forgotten() { return m_nlookup == 0; }
+
+#ifdef VERIFS2_COPY_BENCH
+    /* Only for benchmarking purposes */
+    struct stat& _attrs() {
+      return m_fuseEntryParam.attr;
+    }
+#endif
 };
 
 #endif /* inode_hpp */
