@@ -8,4 +8,18 @@ elseif(UNIX) # Linux, BSD etc
   target_link_libraries(fuse-cpp-ramfs fuse)
 endif()
 target_link_libraries(fuse-cpp-ramfs pthread)
+
+add_executable(copy-bench copy_bench.cpp directory.cpp inode.cpp symlink.cpp file.cpp special_inode.cpp fuse_cpp_ramfs.cpp)
+set_property(TARGET copy-bench PROPERTY CXX_STANDARD 17)
+target_compile_definitions(copy-bench PRIVATE FUSE_USE_VERSION=30 _FILE_OFFSET_BITS=64)
+if(APPLE)
+  target_link_libraries(copy-bench osxfuse)
+elseif(UNIX) # Linux, BSD etc
+  target_link_libraries(copy-bench fuse)
+endif()
+find_package(gflags REQUIRED)
+find_package(benchmark REQUIRED)
+target_link_libraries(copy-bench gflags benchmark)
+
 install(TARGETS fuse-cpp-ramfs DESTINATION bin)
+install(TARGETS copy-bench DESTINATION bin)
