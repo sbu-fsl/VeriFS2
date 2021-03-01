@@ -92,6 +92,13 @@ int Directory::_UpdateChild(const string &name, fuse_ino_t ino) {
 
     m_children[name] = ino;
     
+#ifdef __APPLE__
+        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctimespec));
+	m_fuseEntryParam.attr.st_mtimespec = m_fuseEntryParam.attr.st_ctimespec;
+#else
+	clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctim));
+        m_fuseEntryParam.attr.st_mtim = m_fuseEntryParam.attr.st_ctim;
+#endif
     // TODO: What about directory sizes? Shouldn't we increase the reported size of our dir?
     // NOTE: This is an **update** function, why should we care about increasing size here?
     return 0;
@@ -119,6 +126,13 @@ int Directory::_RemoveChild(const string &name) {
 
     size_t elem_size = sizeof(_Rb_tree_node_base) + sizeof(fuse_ino_t) + sizeof(std::string) + name.size();
     UpdateSize(-elem_size);
+#ifdef __APPLE__
+        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctimespec));
+        m_fuseEntryParam.attr.st_mtimespec = m_fuseEntryParam.attr.st_ctimespec;
+#else
+        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctim));
+        m_fuseEntryParam.attr.st_mtim = m_fuseEntryParam.attr.st_ctim;
+#endif
     return 0;
 }
 

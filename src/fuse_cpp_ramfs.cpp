@@ -253,7 +253,7 @@ void FuseRamFs::FuseSetAttr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, i
         return;
     }
 
-    to_set &= (~FUSE_SET_ATTR_SIZE);
+    //to_set &= (~FUSE_SET_ATTR_SIZE);
     inode->ReplySetAttr(req, attr, to_set);
 }
 
