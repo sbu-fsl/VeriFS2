@@ -19,7 +19,7 @@ elseif(UNIX) # Linux, BSD etc
 endif()
 find_package(gflags REQUIRED)
 find_package(benchmark REQUIRED)
-target_link_libraries(copy-bench gflags benchmark)
+target_link_libraries(copy-bench gflags benchmark profiler)
 
 install(TARGETS fuse-cpp-ramfs DESTINATION bin)
 install(TARGETS copy-bench DESTINATION bin)

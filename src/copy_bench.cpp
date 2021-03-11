@@ -11,6 +11,7 @@
 #include <cmath>
 #include <gflags/gflags.h>
 #include <benchmark/benchmark.h>
+#include <gperftools/profiler.h>
 
 DEFINE_int32(inodes, 100000, "Number of inodes to generate");
 DEFINE_int32(fsize_min, 0, "Minimum size of regular file (in bytes)");
@@ -281,7 +282,9 @@ BENCHMARK(BM_CopyData)->Unit(benchmark::kMillisecond);
 int main(int argc, char **argv) {
   ::benchmark::Initialize(&argc, argv);
   gflags::ParseCommandLineFlags(&argc, &argv, false);
-  // if (::benchmark::ReportUnrecognizedArguments(argc, argv)) return 1;
+  // The purpose of this is to "use" a function in libprofilee so that the
+  // compiler will always link the library.
+  ProfilerEnable();
   CopyBenchTool copybench;
   copybench.SetUp();
   ::benchmark::RunSpecifiedBenchmarks();
