@@ -17,6 +17,13 @@ protected:
     std::shared_mutex entryRwSem;
     std::map<std::string, std::pair<void *, size_t> > m_xattr;
     std::shared_mutex xattrRwSem;
+
+    void copy_from_others(const Inode &src) {
+      m_markedForDeletion = src.m_markedForDeletion;
+      m_nlookup.store(src.m_nlookup.load());
+      m_fuseEntryParam = src.m_fuseEntryParam;
+      m_xattr = src.m_xattr;
+    }
     
 public:
     static const size_t BufBlockSize = 512;
@@ -28,10 +35,13 @@ public:
     {}
 
     Inode(const Inode &src) {
-      m_markedForDeletion = src.m_markedForDeletion;
-      m_nlookup.store(src.m_nlookup.load());
-      m_fuseEntryParam = src.m_fuseEntryParam;
-      m_xattr = src.m_xattr;
+      copy_from_others(src);
+    }
+
+    Inode& operator=(const Inode &src) {
+      if (&src != this)
+        copy_from_others(src);
+      return *this;
     }
     
     virtual ~Inode() = 0;

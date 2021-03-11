@@ -8,6 +8,12 @@
 class File : public Inode {
 private:
     void *m_buf;
+
+    void copy_from_other(const File &f) {
+      size_t bufsize = f.m_fuseEntryParam.attr.st_size; 
+      m_buf = malloc(bufsize);
+      memcpy(m_buf, f.m_buf, bufsize);
+    }
     
 public:
     File() :
@@ -20,11 +26,16 @@ public:
 #endif
 
     File(const File &f) : Inode(f) {
-      size_t bufsize = f.m_fuseEntryParam.attr.st_size; 
-      m_buf = malloc(bufsize);
-      memcpy(m_buf, f.m_buf, bufsize);
+      copy_from_other(f);
     }
 
+    File& operator=(const File &f) {
+      if (&f != this) {
+        Inode::operator=(f);
+        copy_from_other(f);
+      }
+      return *this;
+    }
     
     ~File();
     
