@@ -162,23 +162,30 @@ void destroy_inodes(std::vector<Inode *> &table) {
   table.clear();
 }
 
-void generate_files(std::vector<File> &files, size_t amount) {
-  /* Determine size of the last element */
-  ssize_t remaining = amount;
-  while (remaining > 0) {
-    size_t data_size = rand_range(FLAGS_fsize_min, FLAGS_fsize_max);
-    void *data = malloc(data_size);
-    assert(data != NULL);
-    fill_buf_with_rand(data, data_size);
-    files.emplace_back(data, data_size);
-    remaining -= (data_size + sizeof(File));
+void generate_files(std::vector<File> &files, std::vector<Inode *> &ref) {
+  for (Inode *iptr : ref) {
+    /* Determine the total size of this inode */
+    size_t thissize = sizeof(Inode *) + iptr->Size();
+    if (S_ISREG(iptr->_attrs().st_mode)) {
+      thissize += sizeof(File);
+    } else if (S_ISDIR(iptr->_attrs().st_mode)) {
+      thissize += sizeof(Directory);
+    } else if (S_ISLNK(iptr->_attrs().st_mode)) {
+      thissize += sizeof(SymLink);
+    } else {
+      thissize += sizeof(SpecialInode);
+    }
+    /* The size of data buffer */
+    size_t bufsize = (thissize > sizeof(File)) ? thissize - sizeof(File) : 0;
+    void *data = malloc(bufsize);
+    assert(data != nullptr);
+    fill_buf_with_rand(data, bufsize);
+    files.emplace_back(data, bufsize);
   }
 }
 
 void copy_files(std::vector<File> &dest, const std::vector<File> &src) {
-  for (const File &f : src) {
-    dest.emplace_back(f);
-  }
+  dest = src;
 }
 
 void copy_inodes(std::vector<Inode *> &dest, const std::vector<Inode *> &src) {
@@ -226,7 +233,7 @@ public:
     total_size = generate_inodes(source);
     printf("%zu bytes (%.2f MB)\n", total_size, 1.0 * total_size / 1024 / 1024);
     printf("Generating a list of files that have the same amount of data...");
-    generate_files(files, total_size);
+    generate_files(files, source);
     printf("Done.\n");
     printf("Generating the same amount of contiguous data...");
     data = malloc(total_size);
