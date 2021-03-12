@@ -23,6 +23,33 @@ DEFINE_double(dir_ratio, 0.15, "Ratio of directories");
 DEFINE_double(symlink_ratio, 0.09, "Ratio of symlinks");
 DEFINE_double(special_ratio, 0.01, "Ratio of special files");
 
+enum benchmark::TimeUnit display_time_unit;
+std::string& toLower(std::string &str) {
+  const int kDiff = 'a' - 'A';
+  for (size_t i = 0; i < str.size(); ++i) {
+    if (str[i] >= 'A' && str[i] <= 'Z')
+      str[i] -= kDiff;
+  }
+  return str;
+}
+bool validate_unit_option(const char *flagname, const std::string &value) {
+  std::string val2 = value;
+  toLower(val2);
+  if (val2 == "ms" || val2 == "millisecond" || val2 == "milliseconds")
+    display_time_unit = benchmark::kMillisecond;
+  else if (val2 == "us" || val2 == "microsecond" || val2 == "microseconds")
+    display_time_unit = benchmark::kMicrosecond;
+  else if (val2 == "ns" || val2 == "nanosecond" || val2 == "nanoseconds")
+    display_time_unit = benchmark::kNanosecond;
+  else if (val2 == "s" || val2 == "second" || val2 == "seconds")
+    display_time_unit = benchmark::kSecond;
+  else
+    return false;
+  return true;
+}
+DEFINE_string(time_unit, "ms", "Unit of time");
+DEFINE_validator(time_unit, &validate_unit_option);
+
 int rand_range(int lower, int upper) {
   long randval = rand();
   return (randval % (upper - lower + 1)) + lower;
@@ -260,7 +287,6 @@ static void BM_CopyInodeTable(benchmark::State &state) {
     state.ResumeTiming();
   }
 }
-BENCHMARK(BM_CopyInodeTable)->Unit(benchmark::kMillisecond);
 
 static void BM_CopyFiles(benchmark::State &state) {
   for (auto _ : state) {
@@ -272,7 +298,6 @@ static void BM_CopyFiles(benchmark::State &state) {
     state.ResumeTiming();
   }
 }
-BENCHMARK(BM_CopyFiles)->Unit(benchmark::kMillisecond);
 
 static void BM_CopyData(benchmark::State &state) {
   for (auto _ : state) {
@@ -284,7 +309,6 @@ static void BM_CopyData(benchmark::State &state) {
     state.ResumeTiming();
   }
 }
-BENCHMARK(BM_CopyData)->Unit(benchmark::kMillisecond);
 
 int main(int argc, char **argv) {
   ::benchmark::Initialize(&argc, argv);
@@ -294,6 +318,9 @@ int main(int argc, char **argv) {
   ProfilerEnable();
   CopyBenchTool copybench;
   copybench.SetUp();
+  BENCHMARK(BM_CopyInodeTable)->Unit(display_time_unit);
+  BENCHMARK(BM_CopyFiles)->Unit(display_time_unit);
+  BENCHMARK(BM_CopyData)->Unit(display_time_unit);
   ::benchmark::RunSpecifiedBenchmarks();
   copybench.TearDown();
 }
