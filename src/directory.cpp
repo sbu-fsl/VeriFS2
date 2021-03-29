@@ -37,11 +37,12 @@ void Directory::Initialize(fuse_ino_t ino, mode_t mode, nlink_t nlink, gid_t gid
 }
 
 fuse_ino_t Directory::_ChildInodeNumberWithName(const string &name) {
-    if (m_children.find(name) == m_children.end()) {
+    auto child = find(name);
+    if (child == m_children.end()) {
         return INO_NOTFOUND;
     }
     
-    return m_children[name];
+    return child->second;
 }
 
 /**
@@ -57,7 +58,8 @@ fuse_ino_t Directory::ChildInodeNumberWithName(const string &name) {
 }
 
 int Directory::_AddChild(const string &name, fuse_ino_t ino) {
-    if (m_children.find(name) != m_children.end())
+    auto child = find(name);
+    if (child != m_children.end())
         return -EEXIST;
 
     size_t elem_size = sizeof(_Rb_tree_node_base) + sizeof(fuse_ino_t) + sizeof(std::string) + name.size();
@@ -65,9 +67,8 @@ int Directory::_AddChild(const string &name, fuse_ino_t ino) {
         return -ENOSPC;
     }
 
-    const auto [it, success] = m_children.insert({name, ino});
-    if (!success)
-        return -ENOMEM;
+    // TODO: Should we reserve m_children capacity and return -ENOMEM if it grows out of space?
+    m_children.push_back(std::make_pair(name, ino));
 
     UpdateSize(elem_size);
     return 0;
@@ -87,10 +88,12 @@ int Directory::AddChild(const string &name, fuse_ino_t ino) {
 }
 
 int Directory::_UpdateChild(const string &name, fuse_ino_t ino) {
-    if (m_children.find(name) == m_children.end())
+    auto child = find(name);
+    if (child == m_children.end()) {
         return -ENOENT;
+    }
 
-    m_children[name] = ino;
+    child->second = ino;
     
 #ifdef __APPLE__
         clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctimespec));
@@ -118,7 +121,7 @@ int Directory::UpdateChild(const string &name, fuse_ino_t ino) {
 }
 
 int Directory::_RemoveChild(const string &name) {
-    auto child = m_children.find(name);
+    auto child = find(name);
     if (child == m_children.end())
         return -ENOENT;
 
@@ -175,7 +178,7 @@ Directory::ReadDirCtx* Directory::PrepareReaddir(off_t cookie) {
     }
     /* Make a copy of children */
     std::shared_lock<std::shared_mutex> lk(childrenRwSem);
-    std::map<std::string, fuse_ino_t> copiedChildren(m_children);
+    std::vector<std::pair<std::string, fuse_ino_t>> copiedChildren(m_children);
     lk.unlock();
 
     /* Add it to the table */
@@ -202,4 +205,9 @@ bool Directory::IsEmpty() {
         }
     }
     return true;
+}
+
+std::vector<std::pair<std::string, fuse_ino_t>>::iterator Directory::find(const string& name) {
+    return std::find_if(m_children.begin(), m_children.end(),
+              [&](const auto& child) { return child.first == name; });
 }
