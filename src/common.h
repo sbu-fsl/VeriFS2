@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <sys/xattr.h>
 #include <fcntl.h>
+#include <algorithm>
 
 #include "util.hpp"
 

@@ -21,5 +21,18 @@ find_package(gflags REQUIRED)
 find_package(benchmark REQUIRED)
 target_link_libraries(copy-bench gflags benchmark profiler)
 
+add_executable(directory-bench directory_bench.cpp directory.cpp inode.cpp symlink.cpp file.cpp special_inode.cpp fuse_cpp_ramfs.cpp)
+set_property(TARGET directory-bench PROPERTY CXX_STANDARD 17)
+target_compile_definitions(directory-bench PRIVATE FUSE_USE_VERSION=30 _FILE_OFFSET_BITS=64)
+if(APPLE)
+  target_link_libraries(directory-bench osxfuse)
+elseif(UNIX) # Linux, BSD etc
+  target_link_libraries(directory-bench fuse)
+endif()
+find_package(gflags REQUIRED)
+find_package(benchmark REQUIRED)
+target_link_libraries(directory-bench gflags benchmark profiler)
+
 install(TARGETS fuse-cpp-ramfs DESTINATION bin)
 install(TARGETS copy-bench DESTINATION bin)
+install(TARGETS directory-bench DESTINATION bin)
