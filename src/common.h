@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <algorithm>
 
+#include<boost/container/flat_map.hpp>
 #include "util.hpp"
 
 #endif

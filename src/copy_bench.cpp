@@ -100,7 +100,8 @@ size_t fill_directory(Directory *d) {
       i--;
       continue;
     }
-    d->_children().insert({name, 0});
+    d->_children()[name] = 0;
+    //d->_children().insert(std::make_pair(name, 0));
     total_size += name.capacity() + sizeof(std::string) + sizeof(fuse_ino_t) +
       sizeof(std::_Rb_tree_node_base);
   }

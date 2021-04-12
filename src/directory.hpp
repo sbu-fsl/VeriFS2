@@ -9,17 +9,17 @@
 
 class Directory : public Inode {
 private:
-    std::unordered_map<std::string, fuse_ino_t> m_children;
+    boost::container::flat_map<std::string, fuse_ino_t> m_children;
     std::shared_mutex childrenRwSem;
 
     void UpdateSize(ssize_t delta);
 public:
     struct ReadDirCtx {
         off_t cookie;
-        std::unordered_map<std::string, fuse_ino_t>::iterator it;
-        std::unordered_map<std::string, fuse_ino_t> children;
+        boost::container::flat_map<std::string, fuse_ino_t>::iterator it;
+        boost::container::flat_map<std::string, fuse_ino_t> children;
         ReadDirCtx() {}
-        ReadDirCtx(off_t ck, std::unordered_map<std::string, fuse_ino_t> &ch)
+        ReadDirCtx(off_t ck, boost::container::flat_map<std::string, fuse_ino_t> &ch)
             : cookie(ck) {
                 children = ch;
                 it = children.begin();
@@ -53,13 +53,13 @@ public:
    
     /* NOTE: Not guarded, so accuracy is not guaranteed.
      * Mainly intended for readdir() method. */
-    const std::unordered_map<std::string, fuse_ino_t> &Children() { return m_children; }
+    const boost::container::flat_map<std::string, fuse_ino_t> &Children() { return m_children; }
 
     std::shared_mutex& DirLock() { return childrenRwSem; }
 
 #ifdef VERIFS2_COPY_BENCH
     /* Only for benchmarking purpose! */
-    std::unordered_map<std::string, fuse_ino_t>& _children() {
+    boost::container::flat_map<std::string, fuse_ino_t>& _children() {
       return m_children;
     }
 #endif

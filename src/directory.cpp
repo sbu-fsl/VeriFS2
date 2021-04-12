@@ -65,7 +65,7 @@ int Directory::_AddChild(const string &name, fuse_ino_t ino) {
         return -ENOSPC;
     }
 
-    const auto [it, success] = m_children.insert({name, ino});
+    const auto [it, success] = m_children.insert(std::make_pair(name, ino));
     if (!success)
         return -ENOMEM;
 
@@ -161,7 +161,7 @@ Directory::ReadDirCtx* Directory::PrepareReaddir(off_t cookie) {
     }
     /* Make a copy of children */
     std::shared_lock<std::shared_mutex> lk(childrenRwSem);
-    std::unordered_map<std::string, fuse_ino_t> copiedChildren(m_children);
+    boost::container::flat_map<std::string, fuse_ino_t> copiedChildren(m_children);
     lk.unlock();
 
     /* Add it to the table */
