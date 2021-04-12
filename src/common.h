@@ -35,5 +35,6 @@
 #include <algorithm>
 
 #include "util.hpp"
+#include "include/contiguous/map.h"
 
 #endif
