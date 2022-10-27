@@ -17,7 +17,6 @@ class SpecialInode : public Inode {
 private:
     enum SpecialInodeTypes m_type;
 public:
-    SpecialInode() : m_type(SPECIAL_INODE_TYPE_NO_BLOCK) {}
     SpecialInode(enum SpecialInodeTypes type, dev_t dev = 0);
     ~SpecialInode() {};
 
@@ -28,13 +27,8 @@ public:
     int WriteAndReply(fuse_req_t req, const char *buf, size_t size, off_t off);
     
     int ReadAndReply(fuse_req_t req, size_t size, off_t off);
-
+    
     enum SpecialInodeTypes Type();
-
-    size_t GetPickledSize();
-    size_t Pickle(void* &buf);
-    size_t Load(const void* &buf);
-
     #ifdef DUMP_TESTING
     friend void dump_SpecialInode(SpecialInode* sinode);
     #endif

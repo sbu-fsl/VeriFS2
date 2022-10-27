@@ -14,7 +14,6 @@
 #include <iostream>
 #include <stdexcept>
 #include <atomic>
-#include <algorithm>
 #include <unordered_map>
 
 #include <cstdio>

@@ -38,12 +38,11 @@ void Directory::Initialize(fuse_ino_t ino, mode_t mode, nlink_t nlink, gid_t gid
 }
 
 fuse_ino_t Directory::_ChildInodeNumberWithName(const string &name) {
-    auto child = find(name);
-    if (child == m_children.end()) {
+    if (m_children.find(name) == m_children.end()) {
         return INO_NOTFOUND;
     }
     
-    return child->second;
+    return m_children[name];
 }
 
 /**
@@ -59,8 +58,7 @@ fuse_ino_t Directory::ChildInodeNumberWithName(const string &name) {
 }
 
 int Directory::_AddChild(const string &name, fuse_ino_t ino) {
-    auto child = find(name);
-    if (child != m_children.end())
+    if (m_children.find(name) != m_children.end())
         return -EEXIST;
 
     size_t elem_size = sizeof(_Rb_tree_node_base) + sizeof(fuse_ino_t) + sizeof(std::string) + name.size();
@@ -68,8 +66,9 @@ int Directory::_AddChild(const string &name, fuse_ino_t ino) {
         return -ENOSPC;
     }
 
-    // TODO: Should we reserve m_children capacity and return -ENOMEM if it grows out of space?
-    m_children.push_back(std::make_pair(name, ino));
+    const auto [it, success] = m_children.insert({name, ino});
+    if (!success)
+        return -ENOMEM;
 
     UpdateSize(elem_size);
     return 0;
@@ -89,20 +88,11 @@ int Directory::AddChild(const string &name, fuse_ino_t ino) {
 }
 
 int Directory::_UpdateChild(const string &name, fuse_ino_t ino) {
-    auto child = find(name);
-    if (child == m_children.end()) {
+    if (m_children.find(name) == m_children.end())
         return -ENOENT;
-    }
 
-    child->second = ino;
+    m_children[name] = ino;
     
-#ifdef __APPLE__
-        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctimespec));
-	m_fuseEntryParam.attr.st_mtimespec = m_fuseEntryParam.attr.st_ctimespec;
-#else
-	clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctim));
-        m_fuseEntryParam.attr.st_mtim = m_fuseEntryParam.attr.st_ctim;
-#endif
     // TODO: What about directory sizes? Shouldn't we increase the reported size of our dir?
     // NOTE: This is an **update** function, why should we care about increasing size here?
     return 0;
@@ -122,7 +112,7 @@ int Directory::UpdateChild(const string &name, fuse_ino_t ino) {
 }
 
 int Directory::_RemoveChild(const string &name) {
-    auto child = find(name);
+    auto child = m_children.find(name);
     if (child == m_children.end())
         return -ENOENT;
 
@@ -130,13 +120,6 @@ int Directory::_RemoveChild(const string &name) {
 
     size_t elem_size = sizeof(_Rb_tree_node_base) + sizeof(fuse_ino_t) + sizeof(std::string) + name.size();
     UpdateSize(-elem_size);
-#ifdef __APPLE__
-        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctimespec));
-        m_fuseEntryParam.attr.st_mtimespec = m_fuseEntryParam.attr.st_ctimespec;
-#else
-        clock_gettime(CLOCK_REALTIME, &(m_fuseEntryParam.attr.st_ctim));
-        m_fuseEntryParam.attr.st_mtim = m_fuseEntryParam.attr.st_ctim;
-#endif
     return 0;
 }
 
@@ -177,7 +160,7 @@ Directory::ReadDirCtx* Directory::PrepareReaddir(off_t cookie) {
     }
     /* Make a copy of children */
     std::shared_lock<std::shared_mutex> lk(childrenRwSem);
-    std::vector<std::pair<std::string, fuse_ino_t>> copiedChildren(m_children);
+    std::map<std::string, fuse_ino_t> copiedChildren(m_children);
     lk.unlock();
 
     /* Add it to the table */
@@ -208,92 +191,15 @@ void Directory::RecycleStates() {
 
 bool Directory::IsEmpty() {
     std::shared_lock<std::shared_mutex> lk(childrenRwSem);
-    for (auto & it : m_children) {
-        if (it.first == "." || it.first == "..") {
+    for (auto it = m_children.begin(); it != m_children.end(); ++it) {
+        if (it->first == "." || it->first == "..") {
             continue;
         }
-        Inode *entry = FuseRamFs::GetInode(it.second);
+        Inode *entry = FuseRamFs::GetInode(it->second);
         /* Not empty if it has at least one undeleted inode */
-        if (entry && (entry->NumLinks() > 0)) {
+        if (entry && !entry->HasNoLinks()) {
             return false;
         }
     }
     return true;
-}
-
-size_t Directory::GetPickledSize() {
-    size_t res = Inode::GetPickledSize();
-    // the number of children
-    res += sizeof(size_t);
-    // iterate children
-    for (auto & it : m_children) {
-        // inode number
-        res += sizeof(fuse_ino_t);
-        // name length field
-        res += sizeof(size_t);
-        // size of file name
-        res += it.first.size();
-    }
-    return res;
-}
-
-size_t Directory::Pickle(void* &buf) {
-    if (buf == nullptr) {
-        buf = malloc(Directory::GetPickledSize());
-    }
-    if (buf == nullptr) {
-        return 0;
-    }
-    size_t offset = Inode::Pickle(buf);
-    char *ptr = (char *)buf + offset;
-    // store the number of children in this directory
-    size_t nchildren = m_children.size();
-    memcpy(ptr, &nchildren, sizeof(nchildren));
-    ptr += sizeof(nchildren);
-    // iterate children and store
-    for (auto & it : m_children) {
-        // store inode number
-        fuse_ino_t ino = it.second;
-        memcpy(ptr, &ino, sizeof(ino));
-        ptr += sizeof(ino);
-        // store the length of the file name
-        size_t namelen = it.first.size();
-        memcpy(ptr, &namelen, sizeof(namelen));
-        ptr += sizeof(namelen);
-        // store the name string
-        memcpy(ptr, it.first.c_str(), namelen);
-        ptr += namelen;
-    }
-    return ptr - (char *)buf;
-}
-
-size_t Directory::Load(const void* &buf) {
-    size_t offset = Inode::Load(buf);
-    const char *ptr = (const char *)buf + offset;
-    // get the number of children in the directory
-    size_t nchildren;
-    memcpy(&nchildren, ptr, sizeof(nchildren));
-    ptr += sizeof(nchildren);
-    m_children.clear();
-    // iterate the list and load the children
-    for (size_t i = 0; i < nchildren; ++i) {
-        // load inode number
-        fuse_ino_t ino;
-        memcpy(&ino, ptr, sizeof(ino));
-        ptr += sizeof(ino);
-        // load the length of the name
-        size_t namelen;
-        memcpy(&namelen, ptr, sizeof(namelen));
-        ptr += sizeof(namelen);
-        // load the string itself
-        std::string name(ptr, namelen);
-        ptr += namelen;
-        // add children to this Directory object
-        m_children.push_back(std::make_pair(name, ino));
-    }
-    return ptr - (char *)buf;
-}
-std::vector<std::pair<std::string, fuse_ino_t>>::iterator Directory::find(const string& name) {
-    return std::find_if(m_children.begin(), m_children.end(),
-              [&](const auto& child) { return child.first == name; });
 }

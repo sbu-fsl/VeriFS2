@@ -10,10 +10,10 @@
 using namespace std;
 
 char **copy_args(int argc, const char * argv[]) {
-    char **new_argv = (char **)malloc(sizeof(char *)*argc);
+    char **new_argv = new char*[argc];
     for (int i = 0; i < argc; ++i) {
         int len = (int) strlen(argv[i]) + 1;
-        new_argv[i] = (char *)malloc(len);
+        new_argv[i] = new char[len];
         strncpy(new_argv[i], argv[i], len);
     }
     return new_argv;
@@ -21,9 +21,9 @@ char **copy_args(int argc, const char * argv[]) {
 
 void delete_args(int argc, char **argv) {
     for (int i = 0; i < argc; ++i) {
-        delete[] argv[i];
+        delete argv[i];
     }
-    delete[] argv;
+    delete argv;
 }
 
 struct fuse_chan *ch;
@@ -50,14 +50,14 @@ int main(int argc, const char * argv[]) {
     
     if (options.subtype) {
         mountpoint = options.mountpoint;
-        if (mountpoint == nullptr) {
+        if (mountpoint == NULL) {
             cerr << "USAGE: fuse-cpp-ramfs MOUNTPOINT" << endl;
-        } else if ((ch = fuse_mount(mountpoint, &args)) != nullptr) {
+        } else if ((ch = fuse_mount(mountpoint, &args)) != NULL) {
             struct fuse_session *se;
             // The FUSE options come from our core code.
-            se = fuse_lowlevel_new(&args, &(FuseRamFs::FuseOps),
-                                   sizeof(FuseRamFs::FuseOps), nullptr);
-            if (se != nullptr) {
+            se = fuse_lowlevel_new(&args, &(core.FuseOps),
+                                   sizeof(core.FuseOps), NULL);
+            if (se != NULL) {
                 fuse_daemonize(options.deamonize == 0);
                 if (fuse_set_signal_handlers(se) != -1) {
                     fuse_session_add_chan(se, ch);
@@ -68,12 +68,11 @@ int main(int argc, const char * argv[]) {
                 fuse_session_destroy(se);
             }
             fuse_unmount(mountpoint, ch);
-            delete[] mountpoint;
         }
     }
     fuse_opt_free_args(&args);
     
-    //delete_args(argc, fuse_argv);
+    delete_args(argc, fuse_argv);
     
     return err ? 1 : 0;
 }

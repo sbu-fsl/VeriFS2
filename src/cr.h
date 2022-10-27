@@ -15,13 +15,6 @@ extern "C" {
 #define VERIFS_CHECKPOINT  VERIFS2_IOC(1)
 #define VERIFS_RESTORE     VERIFS2_IOC(2)
 
-// the PICKLE and LOAD should receive a parameter of `struct verifs_str` which
-// contains the path to the output / input file.
-#define VERIFS_PICKLE      VERIFS2_IOC(3)
-#define VERIFS_LOAD        VERIFS2_IOC(4)
-#define VERIFS_PICKLE_CFG  "/tmp/pickle.cfg"
-#define VERIFS_LOAD_CFG    "/tmp/pickle.cfg"
-
 #ifdef __cplusplus
 }
 #endif

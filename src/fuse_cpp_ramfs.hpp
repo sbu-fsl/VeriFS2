@@ -43,8 +43,6 @@ private:
     static void invalidate_kernel_states();
     static int restore(uint64_t key);
     static void check_restored_inode_size();
-    static int pickle_verifs2(void);
-    static int load_verifs2(void);
 
     /* Atomic inode table operations */
     static void DeleteInode(fuse_ino_t ino) {
@@ -143,7 +141,7 @@ public:
         std::shared_lock<std::shared_mutex> readlk(inodesRwSem);
         try {
             return Inodes.at(ino);
-        } catch (std::out_of_range& e) {
+        } catch (std::out_of_range e) {
             return nullptr;
         }
     }

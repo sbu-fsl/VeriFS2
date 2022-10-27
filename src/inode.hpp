@@ -17,13 +17,6 @@ protected:
     std::shared_mutex entryRwSem;
     std::map<std::string, std::pair<void *, size_t> > m_xattr;
     std::shared_mutex xattrRwSem;
-
-    void ClearXAttrs() {
-        for (auto it = m_xattr.begin(); it != m_xattr.end(); ++it) {
-            free(it->second.first);
-        }
-        m_xattr.clear();
-    }
     
 public:
     static const size_t BufBlockSize = 512;
@@ -60,21 +53,17 @@ public:
     virtual int ReplyAccess(fuse_req_t req, int mask, gid_t gid, uid_t uid);
     
     /* Atomic file attribute operations */
-    void IncrementLinkCount() {
+    void AddHardLink() {
         std::unique_lock<std::shared_mutex> lk(entryRwSem);
         m_fuseEntryParam.attr.st_nlink++;
     }
-    void DecrementLinkCount() {
+    void RemoveHardLink() {
         std::unique_lock<std::shared_mutex> lk(entryRwSem);
         m_fuseEntryParam.attr.st_nlink--;
     }
-    int NumLinks() {
+    bool HasNoLinks() {
         std::shared_lock<std::shared_mutex> lk(entryRwSem);
-        return m_fuseEntryParam.attr.st_nlink;
-    }
-    bool IsActive() {
-        std::shared_lock<std::shared_mutex> lk(entryRwSem);
-        return (m_fuseEntryParam.attr.st_nlink + m_nlookup) > 0;
+        return m_fuseEntryParam.attr.st_nlink == 0;
     }
     size_t UsedBlocks() {
         std::shared_lock<std::shared_mutex> lk(entryRwSem);
@@ -96,24 +85,6 @@ public:
     fuse_ino_t GetIno() { return m_fuseEntryParam.attr.st_ino; }
     
     bool Forgotten() { return m_nlookup == 0; }
-
-    virtual size_t GetPickledSize();
-
-    /* Pickle: Serialize the Inode object.
-     *
-     * NOTE: This function does NOT consider implementation or architecture
-     * specific data type length or byte order, so it's not recommended to
-     * pickle and unpickle on different machines. 
-     *
-     * @param[in] The pointer to the buffer. If the buffer is nullptr, Pickle
-     * will automatically allocate sufficient buffer to store the data.
-     * If buf is not null, it must provide at least GetPickledSize() bytes of
-     * buffer, otherwise the behavior is undefined.
-     *
-     * @return The size of serialized object
-     */
-    virtual size_t Pickle(void* &buf);
-    virtual size_t Load(const void* &buf);
 
     friend class FuseRamFs;
     friend class File;
