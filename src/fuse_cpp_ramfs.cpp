@@ -675,7 +675,7 @@ void FuseRamFs::FuseReadDir(fuse_req_t req, fuse_ino_t ino, size_t size,
                                         ++ctx->cookie);
         if (bytesAdded > bufSize) {
             // Oops. There wasn't enough space for that last item. Back up and exit.
-            --(ctx->it);
+            // --(ctx->it);
             bytesAdded = oldSize;
             break;
         } else {
