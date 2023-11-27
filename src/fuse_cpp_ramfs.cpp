@@ -470,7 +470,7 @@ void FuseRamFs::FuseGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_inf
     std::shared_lock<std::shared_mutex> lk(crMutex);
     Inode *inode = GetInode(ino);
     /* return enoent if this inode has been deleted */
-    if (inode == nullptr || inode->HasNoLinks()) {
+    if (inode == nullptr || !inode->IsActive()) {
         fuse_reply_err(req, ENOENT);
         return;
     }
@@ -1222,7 +1222,6 @@ FuseRamFs::FuseRename(fuse_req_t req, fuse_ino_t parent, const char *name, fuse_
         //fuse_reply_err(req, ENOENT);
         //return;
         if (S_ISDIR(existingInode->GetMode())) {
-            existingInode->DecrementLinkCount();
             /* An empty dir has two hard links
              * so we need to decrement one more time */
             existingInode->DecrementLinkCount();
