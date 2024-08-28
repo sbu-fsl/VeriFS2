@@ -1,4 +1,6 @@
-# RefFS: a small, fast file system for Metis as a reference with efficient ioctl API
+# VeriFS2: a small, fast file system for Metis as a reference with efficient ioctl API
+
+VeriFS2 is now renamed as RefFS, and its official repo is moved to [RefFS](https://github.com/sbu-fsl/RefFS).
 
 ## Introducation
 
