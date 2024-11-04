@@ -490,7 +490,7 @@ void FuseRamFs::FuseGetAttr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_inf
     std::shared_lock<std::shared_mutex> lk(crMutex);
     Inode *inode = GetInode(ino);
     /* return enoent if this inode has been deleted */
-    if (inode == nullptr || inode->HasNoLinks()) {
+    if (inode == nullptr || !inode->IsActive()) {
         fuse_reply_err(req, ENOENT);
         return;
     }
@@ -656,7 +656,7 @@ void FuseRamFs::FuseReadDir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
     // Pick the lesser of the max response size or our max size.
     size_t bufSize = FuseRamFs::kReadDirBufSize < size ? FuseRamFs::kReadDirBufSize : size;
-    char *buf = (char *) malloc(bufSize);
+    char *buf = (char *) calloc(bufSize,sizeof(char));
     if (buf == nullptr) {
         fuse_reply_err(req, ENOMEM);
     }
@@ -695,7 +695,6 @@ void FuseRamFs::FuseReadDir(fuse_req_t req, fuse_ino_t ino, size_t size,
                                         ++ctx->cookie);
         if (bytesAdded > bufSize) {
             // Oops. There wasn't enough space for that last item. Back up and exit.
-            --(ctx->it);
             bytesAdded = oldSize;
             break;
         } else {
@@ -1247,7 +1246,6 @@ FuseRamFs::FuseRename(fuse_req_t req, fuse_ino_t parent, const char *name, fuse_
         //fuse_reply_err(req, ENOENT);
         //return;
         if (S_ISDIR(existingInode->GetMode())) {
-            existingInode->DecrementLinkCount();
             /* An empty dir has two hard links
              * so we need to decrement one more time */
             existingInode->DecrementLinkCount();
